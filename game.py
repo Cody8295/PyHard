@@ -1,11 +1,32 @@
 # Cody DallaValle
 # PyHard
 
-import sys, pygame
+import sys, pygame, random, struct
 from pygame.locals import *
+
+walls = []
+
+def floatToBin(fl):
+    return struct.unpack("Q", struct.pack("d", fl))[0]
 
 def generateMap():
     print "generating"
+    rSeed = random.random()
+    mapTxt = ""
+    initVector = 255*rSeed
+    
+    for chr in str(initVector).replace(".", ""):
+	for x in xrange(0, 32):
+	    mapTxt = mapTxt + str(floatToBin(int(chr)*x*x*x*x-initVector*x*x))
+
+    mapHeight, mapWidth = len(mapTxt)/70, len(mapTxt)/70
+
+    for y in xrange(0, 200):
+	if mapTxt[y]>5:
+	     walls.append((y*50,(y%mapWidth)*50 ,50, 50))
+
+    print mapTxt
+	
 
 pygame.init()
 clock = pygame.time.Clock()
@@ -32,6 +53,8 @@ plyPos = (0, 0)
 plyHp = 1000
 plySpeed = 10
 
+hudHealthTxt = font1.render("Health: " + str(plyHp/10), 1, green)
+
 up, down, left, right = False, False, False, False
 
 def plyUp():
@@ -48,8 +71,11 @@ def plyRight():
     plyPos = (plyPos[0]+plySpeed, plyPos[1])
 
 def drawHUD():
-    font1.render("Health: "+str(plyHp/10), 1, green)
+    hndl.blit(hudHealthTxt, (25, 25))
 
+def drawWalls():
+    for wall in walls:
+	pygame.draw.rect(hndl, green, wall)
 
 def drawPly():
     if up: plyUp()
@@ -57,6 +83,8 @@ def drawPly():
     if left: plyLeft()
     if right: plyRight()
     pygame.draw.rect(hndl, blue, (plyPos[0], plyPos[1], 5, 5))
+
+generateMap()
 
 while True:
     
@@ -69,11 +97,13 @@ while True:
 	    startButton = pygame.draw.rect(hndl, green, startBounds)
 	    hndl.blit(mainMenuStart, (275, 90)) # finally draw start text
 	else:
-	    drawHUD();
-	    drawPly();
+	    drawWalls()
+	    drawHUD()
+	    drawPly()
 	    
     else:
 	hndl.fill(black)
+
     for event in pygame.event.get():
 	if starting and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 	    # the user left clicked somewhere on the start screen
