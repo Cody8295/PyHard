@@ -21,16 +21,25 @@ def generateMap():
 
     mapHeight, mapWidth = len(mapTxt)/70, len(mapTxt)/70
 
-    for y in xrange(0, 200):
-	if mapTxt[y]>5:
-	     walls.append((y*50,(y%mapWidth)*50 ,50, 50))
+    for y in xrange(1, len(mapTxt)):
+	if mapTxt[y-1]>5:
+	     walls.append((y*50,(mapWidth%y)*50 ,50, 50))
 
     print mapTxt
+
+def randomSpawn():
+    randX, randY = random.randint(50,250), random.randint(50, 250)
+    for wall in walls:
+	if pygame.Rect(wall).collidepoint(randX, randY):
+	    randomSpawn()
+    return (randX, randY) 
 	
 
+W, H = 500, 300
+offsetX, offsetY = 0, 0
 pygame.init()
 clock = pygame.time.Clock()
-hndl = pygame.display.set_mode((500, 300))
+hndl = pygame.display.set_mode((W, H))
 pygame.display.set_caption("PyHard")
 pygame.key.set_repeat(60, 55)
 
@@ -49,33 +58,64 @@ startBounds = pygame.Rect(250, 90, 100, 25)
 
 starting = True;
 alive = True
-plyPos = (0, 0)
+plyPos = (50, 50)
 plyHp = 1000
 plySpeed = 10
 
-hudHealthTxt = font1.render("Health: " + str(plyHp/10), 1, green)
+hudHealthTxt = font1.render("Health: " + str(plyHp/10), 1, black)
 
 up, down, left, right = False, False, False, False
+
+
+def offset():
+    global plyPos, offsetX, offsetY
+    if plyPos[0]<25:
+	plyPos=(25,plyPos[1])
+	offsetX=offsetX+plySpeed
+    if plyPos[0]>W-25:
+	plyPos=(W-25,plyPos[1])
+	offsetX=offsetX-plySpeed
+    if plyPos[1]<25:
+	plyPos=(plyPos[0],25)
+	offsetY=offsetY+plySpeed
+    if plyPos[1]>H-25:
+	plyPos=(plyPos[0], H-25)
+	offsetY=offsetY-plySpeed
+    for wall in walls:
+	if wall[0]<plyPos[0]+W-offsetX and wall[0]>plyPos[0]-W-offsetX and wall[1]<plyPos[1]+H-offsetY and wall[1]>plyPos[1]-H-offsetY:
+            
+	    if pygame.Rect(wall).collidepoint(plyPos[0]-offsetX,plyPos[1]-offsetY):
+	        return False
+    return True
 
 def plyUp():
     global plyPos
     plyPos = (plyPos[0], plyPos[1]-plySpeed)
+    if not offset(): plyPos = (plyPos[0], plyPos[1]+plySpeed)
+
 def plyDown():
     global plyPos
     plyPos = (plyPos[0], plyPos[1]+plySpeed)
+    if not offset(): plyPos = (plyPos[0], plyPos[1]-plySpeed)
+
 def plyLeft():
     global plyPos
     plyPos = (plyPos[0]-plySpeed, plyPos[1])
+    if not offset(): plyPos = (plyPos[0]+plySpeed, plyPos[1])
+
 def plyRight():
     global plyPos
     plyPos = (plyPos[0]+plySpeed, plyPos[1])
+    if not offset(): plyPos = (plyPos[0]-plySpeed, plyPos[1])
 
 def drawHUD():
-    hndl.blit(hudHealthTxt, (25, 25))
+    hndl.blit(hudHealthTxt, (5, 5))
 
-def drawWalls():
+def drawWalls(): # only draws walls near player
     for wall in walls:
-	pygame.draw.rect(hndl, green, wall)
+	if wall[0]<plyPos[0]+W-offsetX and wall[0]>plyPos[0]-W-offsetX and wall[1]<plyPos[1]+H-offsetY and wall[1]>plyPos[1]-H-offsetY:
+	    wallOffset = (wall[0]+offsetX, wall[1]+offsetY, wall[2], wall[3])
+	    pygame.draw.rect(hndl, green, wallOffset)
 
 def drawPly():
     if up: plyUp()
@@ -96,6 +136,7 @@ while True:
 	    #then draw green background for start button
 	    startButton = pygame.draw.rect(hndl, green, startBounds)
 	    hndl.blit(mainMenuStart, (275, 90)) # finally draw start text
+	    plyPos = randomSpawn()
 	else:
 	    drawWalls()
 	    drawHUD()
