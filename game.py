@@ -3,37 +3,73 @@
 
 import sys, pygame, random, struct
 from pygame.locals import *
+import numpy as np
+import numpy.random
+import matplotlib.pyplot as pp
+#from collections import defaultdict
 
-walls = []
+up, down, left, right = False, False, False, False
+tiles = {} # a dict maching tileIds to lists of walls
+tileSpaces = {} # a dict matching tileIds to Rects of its bounds
+activeTile = 0
 
-def floatToBin(fl):
-    return struct.unpack("Q", struct.pack("d", fl))[0]
+def genHeatmap(seed):
+    if seed==0: seed = 64
+    seed = abs(64%seed)+3
+    rX = np.random.randn(128*seed)
+    rY = np.random.randn(128*seed)
+    heatmap, xe, ye = np.histogram2d(rX, rY, bins=(64,64))
+    #ext = [xe[0], xe[-1], ye[0], ye[-1]]
+    return heatmap
 
-def generateMap():
-    print "generating"
-    rSeed = random.random()
-    mapTxt = ""
-    initVector = 255*rSeed
+def generateMap(tileId):
+    global tiles
+    hm = genHeatmap(tileId)
+    hmSize = np.shape(hm) # size of 2d array
+    tileWalls = []
+    for x in xrange(0, hmSize[0]):
+	for y in xrange(0, hmSize[1]):
+	    if hm[x][y]==0.0: continue
+	    tileWalls.append([x*50, y*50, 50, 50])
+	    # print "\n" + str(x) + " " + str(y) + " = " + " " + str(hm[x][y])
+    #raw_input()
+    tiles[tileId] = tileWalls
+
+def generateTile():
+    newTile = (plyPos[0], plyPos[1], 64*50, 64*50)
+    tileCount = len(tileSpaces)
     
-    for chr in str(initVector).replace(".", ""):
-	for x in xrange(0, 32):
-	    mapTxt = mapTxt + str(floatToBin(int(chr)*x*x*x*x-initVector*x*x))
+    if tileCount<1:
+            tileSpaces[0] = newTile
+	    generateMap(0)
+	    return 0
+    act = tileSpaces[activeTile]
 
-    mapHeight, mapWidth = len(mapTxt)/70, len(mapTxt)/70
-
-    for y in xrange(1, len(mapTxt)):
-	if mapTxt[y-1]>5:
-	     walls.append((y*50,(mapWidth%y)*50 ,50, 50))
-
-    print mapTxt
+    if up:
+        newTile = (act[0], act[1]-64*50, newTile[2], newTile[3])
+	tileSpaces[tileCount]=newTile
+	generateMap(tileCount)
+	return tileCount
+    if down:
+	newTile = (act[0], act[1]+64*50, newTile[2], newTile[3])
+	tileSpaces[tileCount]=newTile
+	generateMap(tileCount)
+	return tileCount
+    if left:
+	newTile = (act[0]-64*50, act[1], newTile[2], newTile[3])
+	tileSpaces[tileCount]=newTile
+	generateMap(tileCount)
+	return tileCount
+    if right:
+	newTile = (act[0]+64-50, act[1], newTile[2], newTile[3])
+	tileSpaces[tileCount]=newTile
+	generateMap(tileCount)
+	return tileCount
 
 def randomSpawn():
     randX, randY = random.randint(50,250), random.randint(50, 250)
-    for wall in walls:
-	if pygame.Rect(wall).collidepoint(randX, randY):
-	    randomSpawn()
-    return (randX, randY) 
-	
+    # check for obstructions first
+    return (randX, randY) 	
 
 W, H = 500, 300
 offsetX, offsetY = 0, 0
@@ -41,7 +77,7 @@ pygame.init()
 clock = pygame.time.Clock()
 hndl = pygame.display.set_mode((W, H))
 pygame.display.set_caption("PyHard")
-pygame.key.set_repeat(60, 55)
+pygame.key.set_repeat(45, 20)
 
 red = pygame.Color(255, 0, 0)
 green = pygame.Color(0, 255, 0)
@@ -60,12 +96,26 @@ starting = True;
 alive = True
 plyPos = (50, 50)
 plyHp = 1000
-plySpeed = 10
+plySpeed = 6
 
 hudHealthTxt = font1.render("Health: " + str(plyHp/10), 1, black)
 
-up, down, left, right = False, False, False, False
-
+def updateActiveTile():
+    global activeTile
+    
+    for tileId, bounds in tileSpaces.items():
+	if pygame.Rect(bounds).collidepoint(plyPos[0]-offsetX, plyPos[1]-offsetY):
+	    activeTile = tileId
+	    
+	    print "Ply is in tile number " + str(tileId)
+	    return
+    
+    print "new tile @"
+    print plyPos[0]-offsetX
+    print plyPos[1]-offsetY
+    print tileSpaces[activeTile]
+    activeTile = generateTile()
+	
 
 def offset():
     global plyPos, offsetX, offsetY
@@ -81,8 +131,10 @@ def offset():
     if plyPos[1]>H-25:
 	plyPos=(plyPos[0], H-25)
 	offsetY=offsetY-plySpeed
-    for wall in walls:
-	if wall[0]<plyPos[0]+W-offsetX and wall[0]>plyPos[0]-W-offsetX and wall[1]<plyPos[1]+H-offsetY and wall[1]>plyPos[1]-H-offsetY:
+    
+    cb = 100 # how many pixels away a wall should be to consider collision
+    for wall in tiles[activeTile]:
+	if wall[0]<plyPos[0]+cb-offsetX and wall[0]>plyPos[0]-cb-offsetX and wall[1]<plyPos[1]+cb-offsetY and wall[1]>plyPos[1]-cb-offsetY:
             
 	    if pygame.Rect(wall).collidepoint(plyPos[0]-offsetX,plyPos[1]-offsetY):
 	        return False
@@ -112,7 +164,13 @@ def drawHUD():
     hndl.blit(hudHealthTxt, (5, 5))
 
 def drawWalls(): # only draws walls near player
-    for wall in walls:
+    if not activeTile in tiles:
+	# not a real active tile id
+	print "Tile ID invalid"
+	return
+    for wall in tiles[activeTile]:
+	#print "drawing" + str(len(tiles[activeTile]))
+	
 	if wall[0]<plyPos[0]+W-offsetX and wall[0]>plyPos[0]-W-offsetX and wall[1]<plyPos[1]+H-offsetY and wall[1]>plyPos[1]-H-offsetY:
 	    wallOffset = (wall[0]+offsetX, wall[1]+offsetY, wall[2], wall[3])
 	    pygame.draw.rect(hndl, green, wallOffset)
@@ -124,7 +182,22 @@ def drawPly():
     if right: plyRight()
     pygame.draw.rect(hndl, blue, (plyPos[0], plyPos[1], 5, 5))
 
-generateMap()
+def tileTimer(): # checks every second if the ply is close
+		 # to the end of any tile, and updates screen
+		 # with new tile. too wasteful doing this every 30 ticks
+    if pygame.time.get_ticks()%1000==0:
+	updateActiveTile()
+    #DEBUGGING stuff below
+    #print str(plyPos[0]) + "," + str(plyPos[1])
+    #print str(plyPos[0]+offsetX) +","+ str(plyPos[1]+offsetY)
+    print str(plyPos[0]-offsetX) +","+ str(plyPos[1]-offsetY)
+    print tileSpaces[activeTile]
+    #print str(plyPos[0]+offsetX) +","+ str(plyPos[1]-offsetY)
+
+
+#GEN MAP ORIGINAL
+#generateMap()
+generateTile()
 
 while True:
     
@@ -141,7 +214,7 @@ while True:
 	    drawWalls()
 	    drawHUD()
 	    drawPly()
-	    
+	    tileTimer()
     else:
 	hndl.fill(black)
 
