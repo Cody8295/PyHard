@@ -61,7 +61,7 @@ def generateTile():
 	generateMap(tileCount)
 	return tileCount
     if right:
-	newTile = (act[0]+64-50, act[1], newTile[2], newTile[3])
+	newTile = (act[0]+64*50, act[1], newTile[2], newTile[3])
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
@@ -102,7 +102,8 @@ hudHealthTxt = font1.render("Health: " + str(plyHp/10), 1, black)
 
 def updateActiveTile():
     global activeTile
-    
+    print "starting search @ " +str(pygame.time.get_ticks())
+
     for tileId, bounds in tileSpaces.items():
 	if pygame.Rect(bounds).collidepoint(plyPos[0]-offsetX, plyPos[1]-offsetY):
 	    activeTile = tileId
@@ -132,11 +133,12 @@ def offset():
 	plyPos=(plyPos[0], H-25)
 	offsetY=offsetY-plySpeed
     
+    act = tileSpaces[activeTile]
     cb = 100 # how many pixels away a wall should be to consider collision
     for wall in tiles[activeTile]:
-	if wall[0]<plyPos[0]+cb-offsetX and wall[0]>plyPos[0]-cb-offsetX and wall[1]<plyPos[1]+cb-offsetY and wall[1]>plyPos[1]-cb-offsetY:
+	if wall[0]<plyPos[0]+cb-offsetX-act[0] and wall[0]>plyPos[0]-cb-offsetX-act[0] and wall[1]<plyPos[1]+cb-offsetY-act[1] and wall[1]>plyPos[1]-cb-offsetY-act[1]:
             
-	    if pygame.Rect(wall).collidepoint(plyPos[0]-offsetX,plyPos[1]-offsetY):
+	    if pygame.Rect(wall).collidepoint(plyPos[0]-offsetX-act[0],plyPos[1]-offsetY-act[1]):
 	        return False
     return True
 
@@ -168,12 +170,13 @@ def drawWalls(): # only draws walls near player
 	# not a real active tile id
 	print "Tile ID invalid"
 	return
+
     for wall in tiles[activeTile]:
-	#print "drawing" + str(len(tiles[activeTile]))
-	
-	if wall[0]<plyPos[0]+W-offsetX and wall[0]>plyPos[0]-W-offsetX and wall[1]<plyPos[1]+H-offsetY and wall[1]>plyPos[1]-H-offsetY:
-	    wallOffset = (wall[0]+offsetX, wall[1]+offsetY, wall[2], wall[3])
+        act = tileSpaces[activeTile]
+	if wall[0]<plyPos[0]+W-offsetX-act[0] and wall[0]>plyPos[0]-W-offsetX-act[0] and wall[1]<plyPos[1]+H-offsetY-act[1] and wall[1]>plyPos[1]-H-offsetY-act[1]:
+	    wallOffset = (wall[0]+offsetX+act[0], wall[1]+offsetY+act[1], wall[2], wall[3])
 	    pygame.draw.rect(hndl, green, wallOffset)
+
 
 def drawPly():
     if up: plyUp()
@@ -185,13 +188,14 @@ def drawPly():
 def tileTimer(): # checks every second if the ply is close
 		 # to the end of any tile, and updates screen
 		 # with new tile. too wasteful doing this every 30 ticks
-    if pygame.time.get_ticks()%1000==0:
+    #print pygame.time.get_ticks()
+    if pygame.time.get_ticks()%7==0:
 	updateActiveTile()
     #DEBUGGING stuff below
     #print str(plyPos[0]) + "," + str(plyPos[1])
     #print str(plyPos[0]+offsetX) +","+ str(plyPos[1]+offsetY)
-    print str(plyPos[0]-offsetX) +","+ str(plyPos[1]-offsetY)
-    print tileSpaces[activeTile]
+        print str(plyPos[0]-offsetX) +","+ str(plyPos[1]-offsetY)
+        print tileSpaces[activeTile]
     #print str(plyPos[0]+offsetX) +","+ str(plyPos[1]-offsetY)
 
 
