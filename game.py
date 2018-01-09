@@ -67,7 +67,7 @@ def generateTile():
 	return tileCount
 
 def randomSpawn():
-    randX, randY = random.randint(50,250), random.randint(50, 250)
+    randX, randY = random.randint(125,250), random.randint(125, 250)
     # check for obstructions first
     return (randX, randY) 	
 
@@ -97,6 +97,7 @@ alive = True
 plyPos = (50, 50)
 plyHp = 1000
 plySpeed = 6
+scrollLimit = 100
 
 hudHealthTxt = font1.render("Health: " + str(plyHp/10), 1, black)
 
@@ -120,17 +121,17 @@ def updateActiveTile():
 
 def offset():
     global plyPos, offsetX, offsetY
-    if plyPos[0]<25:
-	plyPos=(25,plyPos[1])
+    if plyPos[0]<scrollLimit:
+	plyPos=(scrollLimit,plyPos[1])
 	offsetX=offsetX+plySpeed
-    if plyPos[0]>W-25:
-	plyPos=(W-25,plyPos[1])
+    if plyPos[0]>W-scrollLimit:
+	plyPos=(W-scrollLimit,plyPos[1])
 	offsetX=offsetX-plySpeed
-    if plyPos[1]<25:
-	plyPos=(plyPos[0],25)
+    if plyPos[1]<scrollLimit:
+	plyPos=(plyPos[0],scrollLimit)
 	offsetY=offsetY+plySpeed
-    if plyPos[1]>H-25:
-	plyPos=(plyPos[0], H-25)
+    if plyPos[1]>H-scrollLimit:
+	plyPos=(plyPos[0], H-scrollLimit)
 	offsetY=offsetY-plySpeed
     
     act = tileSpaces[activeTile]
