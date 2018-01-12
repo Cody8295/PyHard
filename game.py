@@ -11,7 +11,19 @@ import matplotlib.pyplot as pp
 up, down, left, right = False, False, False, False
 tiles = {} # a dict maching tileIds to lists of walls
 tileSpaces = {} # a dict matching tileIds to Rects of its bounds
-activeTile = 0
+activeTile = 0 # int representation of a tile ID
+bullets = {} # a dict matching bullet ID's to their (x,y) pos
+weapons = {} # a dict matching weapon ID's to a list of wep info
+
+# Format: name, dmg, self dmg, delay, default ammo
+weapons[0] = ["Fists", 100, 20, 500, 0]
+weapons[1] = ["Knive", 250, 0, 1000, 0]
+weapons[2] = ["Revolver", 500, 0, 600, 50]
+weapons[3] = ["Glock", 300, 0, 100, 100]
+weapons[4] = ["AK47", 200, 0, 30, 300]
+weapons[5] = ["AWP", 900, 0, 2000, 30]
+weapons[6] = ["Grenade", 2000, 2000, 3000, 8]
+weapons[7] = ["M16", 230, 0, 100, 250]
 
 def genHeatmap(seed):
     if seed==0: seed = 64
@@ -19,14 +31,13 @@ def genHeatmap(seed):
     rX = np.random.randn(128*seed)
     rY = np.random.randn(128*seed)
     heatmap, xe, ye = np.histogram2d(rX, rY, bins=(64,64))
-    #ext = [xe[0], xe[-1], ye[0], ye[-1]]
     return heatmap
 
 def generateMap(tileId):
     global tiles
     hm = genHeatmap(tileId)
     hmSize = np.shape(hm) # size of 2d array
-    tileWalls = []
+    tileWalls = [] # blank array which will become the tile walls
     for x in xrange(0, hmSize[0]):
 	for y in xrange(0, hmSize[1]):
 	    if hm[x][y]==0.0: continue
@@ -40,11 +51,11 @@ def generateTile():
     tileCount = len(tileSpaces)
     
     if tileCount<1:
-            tileSpaces[0] = newTile
-	    generateMap(0)
-	    return 0
-    act = tileSpaces[activeTile]
+        tileSpaces[0] = newTile
+	generateMap(0)
+	return 0
 
+    act = tileSpaces[activeTile]
     if up:
         newTile = (act[0], act[1]-64*50, newTile[2], newTile[3])
 	tileSpaces[tileCount]=newTile
@@ -97,18 +108,19 @@ alive = True
 plyPos = (50, 50)
 plyHp = 1000
 plySpeed = 6
+plyWepId = 0
 scrollLimit = 100
 
 hudHealthTxt = font1.render("Health: " + str(plyHp/10), 1, black)
 
 def updateActiveTile():
     global activeTile
-    print "starting search @ " +str(pygame.time.get_ticks())
 
+    #tileSpaces is a dict matching tileId's to Rects
     for tileId, bounds in tileSpaces.items():
 	if pygame.Rect(bounds).collidepoint(plyPos[0]-offsetX, plyPos[1]-offsetY):
+	    if activeTile==tileId: return
 	    activeTile = tileId
-	    
 	    print "Ply is in tile number " + str(tileId)
 	    return
     
@@ -163,8 +175,30 @@ def plyRight():
     plyPos = (plyPos[0]+plySpeed, plyPos[1])
     if not offset(): plyPos = (plyPos[0]-plySpeed, plyPos[1])
 
+def plyAttackPrimary():
+    if not plyWepId in weapons: return
+    wepInfo = weapons[plyWepId]
+    # Format: Name, dmg, self dmg, delay, default ammo
+    if wepInfo[0]=="Fists":
+	return
+    
+
 def drawHUD():
     hndl.blit(hudHealthTxt, (5, 5))
+
+def drawMinimap():
+    x, y = W-80, 5
+    mm = pygame.Rect(x, y, 75, 75)
+    pygame.draw.rect(hndl, white, mm)
+    pygame.draw.rect(hndl, green, mm, 1)
+    for wall in tiles[activeTile]:
+        act = tileSpaces[activeTile]
+        if wall[0]<plyPos[0]+W*2-offsetX-act[0] and wall[0]>plyPos[0]-W-offsetX-act[0] and wall[1]<plyPos[1]+H*2-offsetY-act[1] and wall[1]>plyPos[1]-H-offsetY-act[1]:
+            wallOffset = (wall[0]+offsetX+act[0], wall[1]+offsetY+act[1], wall[2], wall[3])
+	    wallOffset = (wallOffset[0]/10+x, wallOffset[1]/10+y, wallOffset[2]/10, wallOffset[3]/10)
+            if mm.contains(wallOffset):
+		pygame.draw.rect(hndl, green, wallOffset)
+    pygame.draw.rect(hndl, red, (plyPos[0]/10+x, plyPos[1]/10+y, 2, 2))
 
 def drawWalls(): # only draws walls near player
     if not activeTile in tiles:
@@ -186,26 +220,24 @@ def drawPly():
     if right: plyRight()
     pygame.draw.rect(hndl, blue, (plyPos[0], plyPos[1], 5, 5))
 
-def tileTimer(): # checks every second if the ply is close
+def tileTimer(): # checks every couple ms if the ply is close
 		 # to the end of any tile, and updates screen
 		 # with new tile. too wasteful doing this every 30 ticks
     #print pygame.time.get_ticks()
     if pygame.time.get_ticks()%7==0:
 	updateActiveTile()
+    
     #DEBUGGING stuff below
     #print str(plyPos[0]) + "," + str(plyPos[1])
     #print str(plyPos[0]+offsetX) +","+ str(plyPos[1]+offsetY)
-        print str(plyPos[0]-offsetX) +","+ str(plyPos[1]-offsetY)
-        print tileSpaces[activeTile]
+        #print str(plyPos[0]-offsetX) +","+ str(plyPos[1]-offsetY)
+        #print tileSpaces[activeTile]
     #print str(plyPos[0]+offsetX) +","+ str(plyPos[1]-offsetY)
 
-
-#GEN MAP ORIGINAL
-#generateMap()
 generateTile()
 
+# MAIN GAME LOOP
 while True:
-    
     if(alive):
 	hndl.fill(white)
 	if(starting): # show start menu
@@ -215,14 +247,16 @@ while True:
 	    startButton = pygame.draw.rect(hndl, green, startBounds)
 	    hndl.blit(mainMenuStart, (275, 90)) # finally draw start text
 	    plyPos = randomSpawn()
-	else:
+	else: # ply is alive and already clicked start
 	    drawWalls()
 	    drawHUD()
 	    drawPly()
+	    drawMinimap()
 	    tileTimer()
-    else:
+    else: # ply is dead
 	hndl.fill(black)
 
+    # EVENT LOOP
     for event in pygame.event.get():
 	if starting and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 	    # the user left clicked somewhere on the start screen
@@ -232,6 +266,7 @@ while True:
 	elif not starting: # game in progress
 	    if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
 		pos = pygame.mouse.get_pos()
+		
 	        # mouse click in gameplay
 	    elif event.type==pygame.KEYDOWN: # key down
 		if event.key==pygame.K_UP or event.key==pygame.K_w: up=True
