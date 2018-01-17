@@ -1,6 +1,17 @@
 # Cody DallaValle
 # PyHard
 
+# TO DO: #
+##########
+# center ply on minimap
+# wep sprites and integration
+# sound
+# networking (BT and wifi)
+# android port
+# terrain sprites
+# 2D/3D terrain
+# seamless minimap scroll
+
 import sys, pygame, random, struct
 from pygame.locals import *
 import numpy as np
@@ -14,6 +25,7 @@ tileSpaces = {} # a dict matching tileIds to Rects of its bounds
 activeTile = 0 # int representation of a tile ID
 bullets = {} # a dict matching bullet ID's to their (x,y) pos
 weapons = {} # a dict matching weapon ID's to a list of wep info
+tileSize = 64*50
 
 # Format: name, dmg, self dmg, delay, default ammo
 weapons[0] = ["Fists", 100, 20, 500, 0]
@@ -28,8 +40,8 @@ weapons[7] = ["M16", 230, 0, 100, 250]
 def genHeatmap(seed):
     if seed==0: seed = 64
     seed = abs(64%seed)+3
-    rX = np.random.randn(128*seed)
-    rY = np.random.randn(128*seed)
+    rX = np.random.randn(4096*seed)
+    rY = np.random.randn(4096*seed)
     heatmap, xe, ye = np.histogram2d(rX, rY, bins=(64,64))
     return heatmap
 
@@ -46,8 +58,13 @@ def generateMap(tileId):
     #raw_input()
     tiles[tileId] = tileWalls
 
+def getTileAtPos(xyPos):
+    for tileId, tile in tileSpaces.items():
+        if tile[0]==xyPos[0] and tile[1]==xyPos[1]: return tileId
+    return -1
+
 def generateTile():
-    newTile = (plyPos[0], plyPos[1], 64*50, 64*50)
+    newTile = (plyPos[0], plyPos[1], tileSize, tileSize)
     tileCount = len(tileSpaces)
     
     if tileCount<1:
@@ -55,24 +72,29 @@ def generateTile():
 	generateMap(0)
 	return 0
 
-    act = tileSpaces[activeTile]
+    act = tileSpaces[activeTile] if activeTile in tileSpaces else tileSpaces[tileCount-1]
+    
     if up:
-        newTile = (act[0], act[1]-64*50, newTile[2], newTile[3])
+        newTile = (act[0], act[1]-tileSize, newTile[2], newTile[3])
+	if not getTileAtPos((newTile[0], newTile[1]))==-1: return
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
     if down:
-	newTile = (act[0], act[1]+64*50, newTile[2], newTile[3])
+	newTile = (act[0], act[1]+tileSize, newTile[2], newTile[3])
+	if not getTileAtPos((newTile[0], newTile[1]))==-1: return
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
     if left:
-	newTile = (act[0]-64*50, act[1], newTile[2], newTile[3])
+	newTile = (act[0]-tileSize, act[1], newTile[2], newTile[3])
+	if not getTileAtPos((newTile[0], newTile[1]))==-1: return
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
     if right:
-	newTile = (act[0]+64*50, act[1], newTile[2], newTile[3])
+	newTile = (act[0]+tileSize, act[1], newTile[2], newTile[3])
+	if not getTileAtPos((newTile[0], newTile[1]))==-1: return
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
@@ -124,10 +146,6 @@ def updateActiveTile():
 	    print "Ply is in tile number " + str(tileId)
 	    return
     
-    print "new tile @"
-    print plyPos[0]-offsetX
-    print plyPos[1]-offsetY
-    print tileSpaces[activeTile]
     activeTile = generateTile()
 	
 
@@ -145,7 +163,8 @@ def offset():
     if plyPos[1]>H-scrollLimit:
 	plyPos=(plyPos[0], H-scrollLimit)
 	offsetY=offsetY-plySpeed
-    
+
+    if not activeTile in tileSpaces: return    
     act = tileSpaces[activeTile]
     cb = 100 # how many pixels away a wall should be to consider collision
     for wall in tiles[activeTile]:
@@ -190,7 +209,8 @@ def drawMinimap():
     x, y = W-80, 5
     mm = pygame.Rect(x, y, 75, 75)
     pygame.draw.rect(hndl, white, mm)
-    pygame.draw.rect(hndl, green, mm, 1)
+    pygame.draw.rect(hndl, black, mm, 1)
+    if not activeTile in tiles: return
     for wall in tiles[activeTile]:
         act = tileSpaces[activeTile]
         if wall[0]<plyPos[0]+W*2-offsetX-act[0] and wall[0]>plyPos[0]-W-offsetX-act[0] and wall[1]<plyPos[1]+H*2-offsetY-act[1] and wall[1]>plyPos[1]-H-offsetY-act[1]:
@@ -200,19 +220,71 @@ def drawMinimap():
 		pygame.draw.rect(hndl, green, wallOffset)
     pygame.draw.rect(hndl, red, (plyPos[0]/10+x, plyPos[1]/10+y, 2, 2))
 
+def getTileAtPos(xyPos):
+    for tileId, tile in tileSpaces.items():
+	if tile[0]==xyPos[0] and tile[1]==xyPos[1]: return tileId
+    return -1
+
+activeTile2, activeTile3, activeTile4 = -1, -1, -1 # 4 tiles is max ply will see at once
+
+def noCollideWalls(): # tells drawWalls about walls of tile(s) that the
+			# ply is/are close to but not actually in.
+			  # Collision only considers the local tile
+			  # but sometimes the ply sees into others.
+    global activeTile2
+    global activeTile3
+    activeTile2, activeTile3, activeTile4 = -1,-1, -1 # reset
+    act = tileSpaces[activeTile]
+    
+    rightTile = getTileAtPos((act[0]+tileSize, act[1]))
+    leftTile = getTileAtPos((act[0]-tileSize, act[1]))
+    bottomTile = getTileAtPos((act[0], act[1]+tileSize))
+    topTile = getTileAtPos((act[0], act[1]-tileSize))
+
+    if plyPos[0]-offsetX>act[0]+act[2]-W: # user sees right tile
+	print "checking right tile for visiblity"
+	print tileSpaces
+	print getTileAtPos((act[0]+tileSize, act[1]))
+	if not rightTile==-1:
+	    print "visible"
+	    activeTile2 = rightTile # early bird gets the worm
+    if plyPos[0]-offsetX<act[0]+W: # user sees left tile
+	if not leftTile==-1:
+	    activeTile3 = leftTile # maybe used, now we have to check
+    if plyPos[1]-offsetY>act[1]+act[3]-H: # user sees bottom tile
+	if not bottomTile==-1:
+	    activeTile4 = bottomTile
+    if plyPos[1]-offsetY<act[1]+H: # user sees top tile
+	if not topTile==-1:
+	    if not activeTile2==-1:
+		activeTile3 = topTile
+	    elif not activeTile3==-1: activeTile4 = topTile
+
 def drawWalls(): # only draws walls near player
     if not activeTile in tiles:
 	# not a real active tile id
 	print "Tile ID invalid"
 	return
+    
+    visibleTiles = [] # tile id's
+    visibleTiles.append(activeTile)
+    noCollideWalls()
+        
+    if not activeTile2==-1:
+	visibleTiles.append(activeTile2)
+    if not activeTile3==-1:
+	visibleTiles.append(activeTile3)
+    if not activeTile4==-1:
+	visibleTiles.append(activeTile4)
 
-    for wall in tiles[activeTile]:
-        act = tileSpaces[activeTile]
-	if wall[0]<plyPos[0]+W-offsetX-act[0] and wall[0]>plyPos[0]-W-offsetX-act[0] and wall[1]<plyPos[1]+H-offsetY-act[1] and wall[1]>plyPos[1]-H-offsetY-act[1]:
-	    wallOffset = (wall[0]+offsetX+act[0], wall[1]+offsetY+act[1], wall[2], wall[3])
-	    pygame.draw.rect(hndl, green, wallOffset)
-
-
+    for tileId in visibleTiles:
+        for wall in tiles[tileId]:
+            act = tileSpaces[tileId]
+	    if wall[0]<plyPos[0]+W-offsetX-act[0] and wall[0]>plyPos[0]-W-offsetX-act[0] and wall[1]<plyPos[1]+H-offsetY-act[1] and wall[1]>plyPos[1]-H-offsetY-act[1]:
+	        wallOffset = (wall[0]+offsetX+act[0], wall[1]+offsetY+act[1], wall[2], wall[3])
+	        pygame.draw.rect(hndl, green, wallOffset)
+    
+  
 def drawPly():
     if up: plyUp()
     if down: plyDown()
@@ -231,7 +303,8 @@ def tileTimer(): # checks every couple ms if the ply is close
     #print str(plyPos[0]) + "," + str(plyPos[1])
     #print str(plyPos[0]+offsetX) +","+ str(plyPos[1]+offsetY)
         #print str(plyPos[0]-offsetX) +","+ str(plyPos[1]-offsetY)
-        #print tileSpaces[activeTile]
+        #act = tileSpaces[activeTile] if activeTile in tileSpaces else (-1,-1,-1,-1)
+	#print str(activeTile2) + ","+str(activeTile3)+","+str(activeTile4)
     #print str(plyPos[0]+offsetX) +","+ str(plyPos[1]-offsetY)
 
 generateTile()
