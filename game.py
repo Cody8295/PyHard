@@ -11,6 +11,7 @@
 # terrain sprites
 # 2D/3D terrain
 # seamless minimap scroll
+# cellular automata map gen
 
 import sys, pygame, random, struct
 from pygame.locals import *
@@ -26,6 +27,7 @@ activeTile = 0 # int representation of a tile ID
 bullets = {} # a dict matching bullet ID's to their (x,y) pos
 weapons = {} # a dict matching weapon ID's to a list of wep info
 tileSize = 64*50
+spawned = False
 
 # Format: name, dmg, self dmg, delay, default ammo
 weapons[0] = ["Fists", 100, 20, 500, 0]
@@ -47,15 +49,46 @@ def genHeatmap(seed):
 
 def generateMap(tileId):
     global tiles
-    hm = genHeatmap(tileId)
-    hmSize = np.shape(hm) # size of 2d array
+    #hm = genHeatmap(tileId)
+    
+    hmSize = (64, 64)#np.shape(hm) # size of 2d array
+    #hm = [hmSize[0]][hmSize[1]]
+    hm = np.empty((64, 64))
+    hm.fill(0)
+    hm = hm.tolist()
+    #print hmSize
     tileWalls = [] # blank array which will become the tile walls
     for x in xrange(0, hmSize[0]):
 	for y in xrange(0, hmSize[1]):
-	    if hm[x][y]==0.0: continue
-	    tileWalls.append([x*50, y*50, 50, 50])
-	    # print "\n" + str(x) + " " + str(y) + " = " + " " + str(hm[x][y])
-    #raw_input()
+	    hm[x][y] = random.uniform(0, 1)
+    caRules(hm, hmSize, tileId)	    
+    #tiles[tileId] = tileWalls
+    #print hm
+
+def caRules(hm, hmSize, tileId): # transforms a 2d array by applying
+		           # cellular automata rules
+    tileWalls = []
+    wallVal = 0.6 # threashold for determining block vs floor
+    for x in xrange(0, hmSize[0]):
+	for y in xrange(0, hmSize[1]):
+	    if hm[x][y]>wallVal: continue # is a floor
+            nbh = 0 # neighborhood count
+            if x+1<hmSize[0] and hm[x+1][y]<=wallVal: nbh=nbh+1
+            if x+1<hmSize[0] and y+1<hmSize[1] and hm[x+1][y+1]<=wallVal:
+                nbh=nbh+1
+            if x+1<hmSize[0] and y-1>=0 and hm[x+1][y-1]<=wallVal:
+                nbh=nbh+1
+            if y+1<hmSize[1] and hm[x][y+1]<=wallVal: nbh=nbh+1
+            if y-1>=0 and hm[x][y-1]<=wallVal: nbh=nbh+1
+            if x-1>=0 and hm[x-1][y]<=wallVal: nbh=nbh+1
+            if x-1>=0 and y+1<hmSize[1] and hm[x-1][y+1]<=wallVal:
+                nbh=nbh+1
+            if x-1>=0 and y-1>=0 and hm[x-1][y-1]<=wallVal: nbh=nbh+1
+            #print nbh
+            #print "--"
+            if nbh>4:
+                #print "making wall @ " + str((x*50, y*50))
+		tileWalls.append((x*50, y*50, 50, 50))
     tiles[tileId] = tileWalls
 
 def getTileAtPos(xyPos):
@@ -76,32 +109,43 @@ def generateTile():
     
     if up:
         newTile = (act[0], act[1]-tileSize, newTile[2], newTile[3])
-	if not getTileAtPos((newTile[0], newTile[1]))==-1: return
+	exists = getTileAtPos((newTile[0], newTile[1]))
+	if not exists==-1: return exists
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
     if down:
 	newTile = (act[0], act[1]+tileSize, newTile[2], newTile[3])
-	if not getTileAtPos((newTile[0], newTile[1]))==-1: return
+	exists = getTileAtPos((newTile[0], newTile[1]))
+	if not exists==-1: return exists
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
     if left:
 	newTile = (act[0]-tileSize, act[1], newTile[2], newTile[3])
-	if not getTileAtPos((newTile[0], newTile[1]))==-1: return
+	exists = getTileAtPos((newTile[0], newTile[1]))
+	if not exists==-1: return exists
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
     if right:
 	newTile = (act[0]+tileSize, act[1], newTile[2], newTile[3])
-	if not getTileAtPos((newTile[0], newTile[1]))==-1: return
+	exists = getTileAtPos((newTile[0], newTile[1]))
+	if not exists==-1: return exists
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
 
 def randomSpawn():
+    global spawned
     randX, randY = random.randint(125,250), random.randint(125, 250)
-    # check for obstructions first
+    # check for obstructions first, recursively try until good spawn found
+    for wall in tiles[activeTile]:
+	if pygame.Rect(wall).collidepoint(randX, randY):
+	    randomSpawn()
+	    break
+    spawned = True
+    print "Found good spawn"
     return (randX, randY) 	
 
 W, H = 500, 300
@@ -131,7 +175,7 @@ plyPos = (50, 50)
 plyHp = 1000
 plySpeed = 6
 plyWepId = 0
-scrollLimit = 100
+scrollLimit = 150
 
 hudHealthTxt = font1.render("Health: " + str(plyHp/10), 1, black)
 
@@ -233,6 +277,7 @@ def noCollideWalls(): # tells drawWalls about walls of tile(s) that the
 			  # but sometimes the ply sees into others.
     global activeTile2
     global activeTile3
+    global activeTile4
     activeTile2, activeTile3, activeTile4 = -1,-1, -1 # reset
     act = tileSpaces[activeTile]
     
@@ -263,7 +308,7 @@ def noCollideWalls(): # tells drawWalls about walls of tile(s) that the
 def drawWalls(): # only draws walls near player
     if not activeTile in tiles:
 	# not a real active tile id
-	print "Tile ID invalid"
+	print "Tile ID invalid: " + str(activeTile)
 	return
     
     visibleTiles = [] # tile id's
@@ -319,13 +364,15 @@ while True:
 	    #then draw green background for start button
 	    startButton = pygame.draw.rect(hndl, green, startBounds)
 	    hndl.blit(mainMenuStart, (275, 90)) # finally draw start text
-	    plyPos = randomSpawn()
 	else: # ply is alive and already clicked start
 	    drawWalls()
 	    drawHUD()
 	    drawPly()
 	    drawMinimap()
 	    tileTimer()
+	    if not spawned:
+		print "Finding spawn"
+		plyPos = randomSpawn()
     else: # ply is dead
 	hndl.fill(black)
 
