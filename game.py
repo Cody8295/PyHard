@@ -12,13 +12,14 @@
 # 2D/3D terrain
 # seamless minimap scroll
 # cellular automata map gen
+# USB controller support
 
 import sys, pygame, random, struct
 from pygame.locals import *
 import numpy as np
 import numpy.random
 import matplotlib.pyplot as pp
-#from collections import defaultdict
+
 
 up, down, left, right = False, False, False, False
 tiles = {} # a dict maching tileIds to lists of walls
@@ -28,6 +29,8 @@ bullets = {} # a dict matching bullet ID's to their (x,y) pos
 weapons = {} # a dict matching weapon ID's to a list of wep info
 tileSize = 64*50
 spawned = False
+
+pygame.joystick.init()
 
 # Format: name, dmg, self dmg, delay, default ammo
 weapons[0] = ["Fists", 100, 20, 500, 0]
@@ -49,29 +52,82 @@ def genHeatmap(seed):
 
 def generateMap(tileId):
     global tiles
-    #hm = genHeatmap(tileId)
     
-    hmSize = (64, 64)#np.shape(hm) # size of 2d array
-    #hm = [hmSize[0]][hmSize[1]]
+    
+    hmSize = (64, 64) # size of 2d array
+    
     hm = np.empty((64, 64))
     hm.fill(0)
     hm = hm.tolist()
-    #print hmSize
+    
     tileWalls = [] # blank array which will become the tile walls
     for x in xrange(0, hmSize[0]):
 	for y in xrange(0, hmSize[1]):
 	    hm[x][y] = random.uniform(0, 1)
-    caRules(hm, hmSize, tileId)	    
-    #tiles[tileId] = tileWalls
-    #print hm
+    #for z in xrange(0, 15):
+#	hm = caRules(hm, hmSize, tileId)
+    
+    fixCorners(hm, hmSize, tileId)
+    
+
+wallVal = 0.1
+
+def fixCorners(hm, hmSize, tileId):
+    tileWalls = []
+    for x in xrange(0, hmSize[0]):
+        for y in xrange(0, hmSize[1]):
+	    if hm[x][y]<=wallVal: tileWalls.append((x*50, y*50, 50, 50)) # add existing walls
+	    if x-1>=0 and y-1>=0 and hm[x-1][y-1]<=wallVal:
+		# wall has a neighbor NW, check for jagged-ness
+		if hm[x-1][y]>wallVal and hm[x][y-1]>wallVal:
+		    # wall is jagged in respect to NW neighbor
+		    # because it has no north or west neighbors
+		    # pick a direction at random to place new wall
+		    randDir = random.randint(0,1)
+		    if randDir==0:
+			tileWalls.append(((x-1)*50, y*50, 50, 50))
+		    else:
+			tileWalls.append((x*50, (y-1)*50, 50, 50))
+	    if x+1<hmSize[0] and y-1>=0 and hm[x+1][y-1]<=wallVal:
+		# wall has a neighbor NE
+		if hm[x][y-1]>wallVal and hm[x+1][y]>wallVal:
+		    # wall is jagged in respect to NE neighbor
+		    # no north or east neightbors, pick randomly
+		    randDir = random.randint(0,1)
+		    if randDir==0:
+			tileWalls.append(((x+1)*50, y*50, 50, 50))
+		    else:
+			tileWalls.append((x*50, (y-1)*50, 50, 50))
+	    if x+1<hmSize[0] and y+1<hmSize[1] and hm[x+1][y+1]<=wallVal:
+		# wall has a SE neighbor
+		if hm[x+1][y]>wallVal and hm[x][y+1]>wallVal:
+		    # wall is jagged in respect to SE neighbor
+		    # no south or east neighbors, pick randomly
+		    randDir = random.randint(0,1)
+		    if randDir==0:
+			tileWalls.append(((x+1)*50, y*50, 50, 50))
+		    else:
+			tileWalls.append((x*50, (y+1)*50, 50, 50))
+	    if x-1>=0 and y+1<hmSize[1] and hm[x-1][y+1]<=wallVal:
+		# wall has a SW neighbor
+		if hm[x-1][y]>wallVal and hm[x][y+1]>wallVal:
+		    # wall is jagged in respect to SW neighbor
+		    # no south or west neighbors, pick randomly
+		    randDir = random.randint(0,1)
+		    if randDir==0:
+			tileWalls.append(((x+1)*50, y*50, 50, 50))
+		    else:
+			tileWalls.append((x*50, (y+1)*50, 50, 50))
+    tiles[tileId] = tileWalls
 
 def caRules(hm, hmSize, tileId): # transforms a 2d array by applying
 		           # cellular automata rules
     tileWalls = []
-    wallVal = 0.6 # threashold for determining block vs floor
+    #wallVal = 0.6 # threashold for determining block vs floor
     for x in xrange(0, hmSize[0]):
 	for y in xrange(0, hmSize[1]):
-	    if hm[x][y]>wallVal: continue # is a floor
+	    if hm[x][y]>wallVal:
+		continue # is a floor
             nbh = 0 # neighborhood count
             if x+1<hmSize[0] and hm[x+1][y]<=wallVal: nbh=nbh+1
             if x+1<hmSize[0] and y+1<hmSize[1] and hm[x+1][y+1]<=wallVal:
@@ -84,12 +140,15 @@ def caRules(hm, hmSize, tileId): # transforms a 2d array by applying
             if x-1>=0 and y+1<hmSize[1] and hm[x-1][y+1]<=wallVal:
                 nbh=nbh+1
             if x-1>=0 and y-1>=0 and hm[x-1][y-1]<=wallVal: nbh=nbh+1
-            #print nbh
-            #print "--"
-            if nbh>4:
-                #print "making wall @ " + str((x*50, y*50))
+            
+            if nbh>5:
+		#hm[x][y] = 0
 		tileWalls.append((x*50, y*50, 50, 50))
+	   # else:
+	#	hm[x][y] = 1
+    #return hm
     tiles[tileId] = tileWalls
+    return hm
 
 def getTileAtPos(xyPos):
     for tileId, tile in tileSpaces.items():
@@ -138,15 +197,17 @@ def generateTile():
 
 def randomSpawn():
     global spawned
-    randX, randY = random.randint(125,250), random.randint(125, 250)
+    randX, randY = random.randint(0,500), random.randint(0, 500)
     # check for obstructions first, recursively try until good spawn found
     for wall in tiles[activeTile]:
 	if pygame.Rect(wall).collidepoint(randX, randY):
-	    randomSpawn()
+	    #randomSpawn()
+	    #return (100, 100)
 	    break
     spawned = True
     print "Found good spawn"
-    return (randX, randY) 	
+    return (60,60)
+    #return (randX, randY) 	
 
 W, H = 500, 300
 offsetX, offsetY = 0, 0
@@ -175,7 +236,7 @@ plyPos = (50, 50)
 plyHp = 1000
 plySpeed = 6
 plyWepId = 0
-scrollLimit = 150
+scrollLimit = 125
 
 hudHealthTxt = font1.render("Health: " + str(plyHp/10), 1, black)
 
@@ -354,6 +415,35 @@ def tileTimer(): # checks every couple ms if the ply is close
 
 generateTile()
 
+for i in range(pygame.joystick.get_count()):
+    pygame.joystick.Joystick(i).init()
+
+kbOverride = False
+
+def joyControl():
+    global up, down, left, right, kbOverride
+    if kbOverride: return
+    for i in range(pygame.joystick.get_count()):
+	js = pygame.joystick.Joystick(i)
+	#js.init()
+	#print js.get_numaxes()
+	axisH, axisV = js.get_axis(0), js.get_axis(1)
+	if axisH<-0.7 and axisH>-1.1:
+	    left = True
+	else: left = False
+	if axisH>0.7 and axisH<1.1:
+	    right = True
+	else: right = False
+	if axisV<-0.7 and axisV>-1.1:
+	    up = True
+	else: up = False
+	if axisV>0.7 and axisV<1.1:
+	    down = True
+	else: down = False
+	#for x in range(js.get_numaxes()):
+	 #   print js.get_axis(x)
+	#print js.get_numbuttons()
+
 # MAIN GAME LOOP
 while True:
     if(alive):
@@ -370,6 +460,7 @@ while True:
 	    drawPly()
 	    drawMinimap()
 	    tileTimer()
+	    joyControl()
 	    if not spawned:
 		print "Finding spawn"
 		plyPos = randomSpawn()
@@ -383,20 +474,27 @@ while True:
 	    pos = pygame.mouse.get_pos()
 	    if startButton.collidepoint(pos):
 		starting = False; # a user clicked on start button
+		
 	elif not starting: # game in progress
+	    if event.type==pygame.JOYBUTTONDOWN:
+		joyControl()
 	    if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
 		pos = pygame.mouse.get_pos()
 		
 	        # mouse click in gameplay
+	    
 	    elif event.type==pygame.KEYDOWN: # key down
+		kbOverride = True
 		if event.key==pygame.K_UP or event.key==pygame.K_w: up=True
 		if event.key==pygame.K_DOWN or event.key==pygame.K_s: down=True
 		if event.key==pygame.K_LEFT or event.key==pygame.K_a: left=True
 		if event.key==pygame.K_RIGHT or event.key==pygame.K_d: right=True
 	    elif event.type==pygame.KEYUP:
+		#if not up and not down and not left and not right: kvOverride = False
 		if event.key==pygame.K_UP or event.key==pygame.K_w: up=False
 		if event.key==pygame.K_DOWN or event.key==pygame.K_s: down=False
 		if event.key==pygame.K_LEFT or event.key==K_a: left=False
 		if event.key==pygame.K_RIGHT or event.key==K_d: right=False
+    		if not left and not right and not up and not down: kbOverride = False
     pygame.display.update()
     clock.tick(30)
