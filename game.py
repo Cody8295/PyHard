@@ -17,8 +17,8 @@
 import sys, pygame, random, struct
 from pygame.locals import *
 import numpy as np
-import numpy.random
-import matplotlib.pyplot as pp
+#import numpy.random
+#import matplotlib.pyplot as pp
 
 
 up, down, left, right = False, False, False, False
