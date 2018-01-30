@@ -166,34 +166,36 @@ def generateTile():
 
     act = tileSpaces[activeTile] if activeTile in tileSpaces else tileSpaces[tileCount-1]
     
-    if up:
+    if up or plyPos[1]-offsetY<act[1]:
         newTile = (act[0], act[1]-tileSize, newTile[2], newTile[3])
 	exists = getTileAtPos((newTile[0], newTile[1]))
 	if not exists==-1: return exists
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
-    if down:
+    if down or plyPos[1]-offsetY>act[1]+act[3]:
 	newTile = (act[0], act[1]+tileSize, newTile[2], newTile[3])
 	exists = getTileAtPos((newTile[0], newTile[1]))
 	if not exists==-1: return exists
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
-    if left:
+    if left or plyPos[0]-offsetX<act[0]:
 	newTile = (act[0]-tileSize, act[1], newTile[2], newTile[3])
 	exists = getTileAtPos((newTile[0], newTile[1]))
 	if not exists==-1: return exists
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
-    if right:
+    if right or plyPos[0]-offsetX<act[0]+act[2]:
 	newTile = (act[0]+tileSize, act[1], newTile[2], newTile[3])
 	exists = getTileAtPos((newTile[0], newTile[1]))
 	if not exists==-1: return exists
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
+
+    
 
 def randomSpawn():
     global spawned
