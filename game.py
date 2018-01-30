@@ -334,6 +334,18 @@ def getTileAtPos(xyPos):
 
 activeTile2, activeTile3, activeTile4 = -1, -1, -1 # 4 tiles is max ply will see at once
 
+def ncTile(tile): # puts the no collide tile into an empty
+		  # "active tile" variable for drawing
+    global activeTile2, activeTile3, activeTile4
+    if tile==-1: return # tile doesnt exist, do nothing
+    if activeTile2==-1:
+	activeTile2 = tile
+    elif activeTile3==-1:
+	activeTile3 = tile
+    elif activeTile4==-1:
+	activeTile4 = tile
+
+
 def noCollideWalls(): # tells drawWalls about walls of tile(s) that the
 			# ply is/are close to but not actually in.
 			  # Collision only considers the local tile
@@ -341,32 +353,34 @@ def noCollideWalls(): # tells drawWalls about walls of tile(s) that the
     global activeTile2
     global activeTile3
     global activeTile4
-    activeTile2, activeTile3, activeTile4 = -1,-1, -1 # reset
+    activeTile2, activeTile3, activeTile4 = -1,-1,-1 # reset
     act = tileSpaces[activeTile]
     
     rightTile = getTileAtPos((act[0]+tileSize, act[1]))
     leftTile = getTileAtPos((act[0]-tileSize, act[1]))
     bottomTile = getTileAtPos((act[0], act[1]+tileSize))
     topTile = getTileAtPos((act[0], act[1]-tileSize))
+    nwTile = getTileAtPos((act[0]-tileSize, act[1]-tileSize))
+    neTile = getTileAtPos((act[0]+tileSize, act[1]-tileSize))
+    swTile = getTileAtPos((act[0]-tileSize, act[1]+tileSize))
+    seTile = getTileAtPos((act[0]+tileSize, act[1]+tileSize))
 
+    if plyPos[0]-offsetX>act[0]+act[2]-W and plyPos[1]-offsetY>act[1]+act[3]-H:
+	ncTile(seTile)
+    if plyPos[0]-offsetX<act[0]+W and plyPos[1]-offsetY>act[1]+act[3]-H:
+	ncTile(swTile)
+    if plyPos[0]-offsetX>act[0]+act[2]-W and plyPos[1]-offsetY<act[1]+H:
+	ncTile(neTile)
+    if plyPos[0]-offsetX<act[0]+W and plyPos[1]-offsetY<act[1]+H:
+	ncTile(nwTile)
     if plyPos[0]-offsetX>act[0]+act[2]-W: # user sees right tile
-	print "checking right tile for visiblity"
-	print tileSpaces
-	print getTileAtPos((act[0]+tileSize, act[1]))
-	if not rightTile==-1:
-	    print "visible"
-	    activeTile2 = rightTile # early bird gets the worm
+	ncTile(rightTile)
     if plyPos[0]-offsetX<act[0]+W: # user sees left tile
-	if not leftTile==-1:
-	    activeTile3 = leftTile # maybe used, now we have to check
+	ncTile(leftTile)
     if plyPos[1]-offsetY>act[1]+act[3]-H: # user sees bottom tile
-	if not bottomTile==-1:
-	    activeTile4 = bottomTile
+	ncTile(bottomTile)
     if plyPos[1]-offsetY<act[1]+H: # user sees top tile
-	if not topTile==-1:
-	    if not activeTile2==-1:
-		activeTile3 = topTile
-	    elif not activeTile3==-1: activeTile4 = topTile
+	ncTile(topTile)
 
 def drawWalls(): # only draws walls near player
     if not activeTile in tiles:
