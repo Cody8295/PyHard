@@ -34,7 +34,7 @@ pygame.joystick.init()
 
 # Format: name, dmg, self dmg, delay, default ammo
 weapons[0] = ["Fists", 100, 20, 500, 0]
-weapons[1] = ["Knive", 250, 0, 1000, 0]
+weapons[1] = ["Knife", 250, 0, 1000, 0]
 weapons[2] = ["Revolver", 500, 0, 600, 50]
 weapons[3] = ["Glock", 300, 0, 100, 100]
 weapons[4] = ["AK47", 200, 0, 30, 300]
