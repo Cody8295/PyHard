@@ -13,6 +13,7 @@
 # seamless minimap scroll
 # fix the cellular automata map gen
 # continue USB controller support
+# finish start menu
 
 import sys, pygame, random, struct
 from pygame.locals import *
@@ -248,6 +249,7 @@ def updateActiveTile():
 
     #tileSpaces is a dict matching tileId's to Rects
     for tileId, bounds in tileSpaces.items():
+	#lessBounds = (bounds[0]+50, bounds[1]-50, bounds[2]-100, bounds[3]-100)
 	if pygame.Rect(bounds).collidepoint(plyPos[0]-offsetX, plyPos[1]-offsetY):
 	    if activeTile==tileId: return
 	    activeTile = tileId
@@ -276,15 +278,11 @@ def offset():
     act = tileSpaces[activeTile]
     collideWalls = {}
     collideWalls[activeTile] = tiles[activeTile]
-    #collideTiles = 1
     if not activeTile2==-1:
-#	collideTiles=collideTiles+1
 	collideWalls[activeTile2] = tiles[activeTile2]
     if not activeTile3==-1:
-#	collideTiles=collideTiles+1
 	collideWalls[activeTile3] = tiles[activeTile3]
     if not activeTile4==-1:
-#	collideTiles=collideTiles+1
 	collideWalls[activeTile4] = tiles[activeTile4]
     cb = 100 # how many pixels away a wall should be to consider collision
     for k, v in collideWalls.items():
@@ -322,7 +320,6 @@ def plyAttackPrimary():
     if wepInfo[0]=="Fists":
 	return
     
-
 def drawHUD():
     hndl.blit(hudHealthTxt, (5, 5))
 
@@ -335,11 +332,11 @@ def drawMinimap():
     for wall in tiles[activeTile]:
         act = tileSpaces[activeTile]
         if wall[0]<plyPos[0]+W*2-offsetX-act[0] and wall[0]>plyPos[0]-W-offsetX-act[0] and wall[1]<plyPos[1]+H*2-offsetY-act[1] and wall[1]>plyPos[1]-H-offsetY-act[1]:
-            wallOffset = (wall[0]+offsetX+act[0], wall[1]+offsetY+act[1], wall[2], wall[3])
-	    wallOffset = (wallOffset[0]/10+x, wallOffset[1]/10+y, wallOffset[2]/10, wallOffset[3]/10)
+            wallOffset = (wall[0]-plyPos[0]+offsetX+act[0], wall[1]-plyPos[1]+offsetY+act[1], wall[2], wall[3])
+	    wallOffset = (wallOffset[0]/10+x+37, wallOffset[1]/10+y+37, wallOffset[2]/10, wallOffset[3]/10)
             if mm.contains(wallOffset):
 		pygame.draw.rect(hndl, green, wallOffset)
-    pygame.draw.rect(hndl, red, (plyPos[0]/10+x, plyPos[1]/10+y, 2, 2))
+    pygame.draw.rect(hndl, red, (37+x, 37+y, 2, 2))
 
 def getTileAtPos(xyPos):
     for tileId, tile in tileSpaces.items():
@@ -449,29 +446,32 @@ for i in range(pygame.joystick.get_count()):
     pygame.joystick.Joystick(i).init()
 
 kbOverride = False
+js = 0
+if pygame.joystick.get_count()>0:
+    js = pygame.joystick.Joystick(0)
 
 def joyControl():
     global up, down, left, right, kbOverride
     if kbOverride: return
-    for i in range(pygame.joystick.get_count()):
-	js = pygame.joystick.Joystick(i)
+    #for i in range(pygame.joystick.get_count()):
+	#js = pygame.joystick.Joystick(i)
 	#js.init()
 	#print js.get_numaxes()
-	axisH, axisV = js.get_axis(0), js.get_axis(1)
-	if axisH<-0.7 and axisH>-1.1:
-	    left = True
-	else: left = False
-	if axisH>0.7 and axisH<1.1:
-	    right = True
-	else: right = False
-	if axisV<-0.7 and axisV>-1.1:
-	    up = True
-	else: up = False
-	if axisV>0.7 and axisV<1.1:
-	    down = True
-	else: down = False
-	#for x in range(js.get_numaxes()):
-	 #   print js.get_axis(x)
+    axisH, axisV = js.get_axis(0), js.get_axis(1)
+    if axisH<-0.7 and axisH>-1.1:
+        left = True
+    else: left = False
+    if axisH>0.7 and axisH<1.1:
+        right = True
+    else: right = False
+    if axisV<-0.7 and axisV>-1.1:
+        up = True
+    else: up = False
+    if axisV>0.7 and axisV<1.1:
+        down = True
+    else: down = False
+#	for x in range(js.get_numbuttons()):
+#	    print (x,js.get_button(x))
 	#print js.get_numbuttons()
 
 # MAIN GAME LOOP
@@ -504,10 +504,12 @@ while True:
 	    pos = pygame.mouse.get_pos()
 	    if startButton.collidepoint(pos):
 		starting = False; # a user clicked on start button
-		
+	elif starting and event.type == pygame.JOYBUTTONDOWN:
+	    if js.get_button(1)==1 or js.get_button(2)==1:
+		starting = False
 	elif not starting: # game in progress
 	    if event.type==pygame.JOYBUTTONDOWN:
-		joyControl()
+		print "Joycon btn down"		
 	    if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
 		pos = pygame.mouse.get_pos()
 		
