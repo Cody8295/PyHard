@@ -258,9 +258,10 @@ def updateActiveTile():
     
     activeTile = generateTile()
 	
+collideWalls = {}
 
 def offset():
-    global plyPos, offsetX, offsetY
+    global plyPos, offsetX, offsetY, collideWalls
     if plyPos[0]<scrollLimit:
 	plyPos=(scrollLimit,plyPos[1])
 	offsetX=offsetX+plySpeed
@@ -329,13 +330,14 @@ def drawMinimap():
     pygame.draw.rect(hndl, white, mm)
     pygame.draw.rect(hndl, black, mm, 1)
     if not activeTile in tiles: return
-    for wall in tiles[activeTile]:
-        act = tileSpaces[activeTile]
-        if wall[0]<plyPos[0]+W*2-offsetX-act[0] and wall[0]>plyPos[0]-W-offsetX-act[0] and wall[1]<plyPos[1]+H*2-offsetY-act[1] and wall[1]>plyPos[1]-H-offsetY-act[1]:
-            wallOffset = (wall[0]-plyPos[0]+offsetX+act[0], wall[1]-plyPos[1]+offsetY+act[1], wall[2], wall[3])
-	    wallOffset = (wallOffset[0]/10+x+37, wallOffset[1]/10+y+37, wallOffset[2]/10, wallOffset[3]/10)
-            if mm.contains(wallOffset):
-		pygame.draw.rect(hndl, green, wallOffset)
+    for k, v in collideWalls.items():
+        for wall in v:
+            act = tileSpaces[k]
+            if wall[0]<plyPos[0]+W*2-offsetX-act[0] and wall[0]>plyPos[0]-W-offsetX-act[0] and wall[1]<plyPos[1]+H*2-offsetY-act[1] and wall[1]>plyPos[1]-H-offsetY-act[1]:
+                wallOffset = (wall[0]-plyPos[0]+offsetX+act[0], wall[1]-plyPos[1]+offsetY+act[1], wall[2], wall[3])
+	        wallOffset = (wallOffset[0]/10+x+37, wallOffset[1]/10+y+37, wallOffset[2]/10, wallOffset[3]/10)
+                if mm.contains(wallOffset):
+		    pygame.draw.rect(hndl, green, wallOffset)
     pygame.draw.rect(hndl, red, (37+x, 37+y, 2, 2))
 
 def getTileAtPos(xyPos):
