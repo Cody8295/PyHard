@@ -11,8 +11,8 @@
 # terrain sprites
 # 2D/3D terrain
 # seamless minimap scroll
-# cellular automata map gen
-# USB controller support
+# fix the cellular automata map gen
+# continue USB controller support
 
 import sys, pygame, random, struct
 from pygame.locals import *
@@ -199,16 +199,17 @@ def generateTile():
 
 def randomSpawn():
     global spawned
+    act = tileSpaces[activeTile]
     randX, randY = random.randint(0,500), random.randint(0, 500)
     # check for obstructions first, recursively try until good spawn found
     for wall in tiles[activeTile]:
-	if pygame.Rect(wall).collidepoint(randX, randY):
-	    #randomSpawn()
+	if pygame.Rect(wall).collidepoint(randX-offsetX+act[0], randY-offsetY+act[1]):
+	    randomSpawn()
 	    #return (100, 100)
 	    break
     spawned = True
     print "Found good spawn"
-    return (60,60)
+    return (randX-offsetX+act[0],randY-offsetY+act[1])
     #return (randX, randY) 	
 
 W, H = 500, 300
@@ -273,12 +274,25 @@ def offset():
 
     if not activeTile in tileSpaces: return    
     act = tileSpaces[activeTile]
+    collideWalls = {}
+    collideWalls[activeTile] = tiles[activeTile]
+    #collideTiles = 1
+    if not activeTile2==-1:
+#	collideTiles=collideTiles+1
+	collideWalls[activeTile2] = tiles[activeTile2]
+    if not activeTile3==-1:
+#	collideTiles=collideTiles+1
+	collideWalls[activeTile3] = tiles[activeTile3]
+    if not activeTile4==-1:
+#	collideTiles=collideTiles+1
+	collideWalls[activeTile4] = tiles[activeTile4]
     cb = 100 # how many pixels away a wall should be to consider collision
-    for wall in tiles[activeTile]:
-	if wall[0]<plyPos[0]+cb-offsetX-act[0] and wall[0]>plyPos[0]-cb-offsetX-act[0] and wall[1]<plyPos[1]+cb-offsetY-act[1] and wall[1]>plyPos[1]-cb-offsetY-act[1]:
-            
-	    if pygame.Rect(wall).collidepoint(plyPos[0]-offsetX-act[0],plyPos[1]-offsetY-act[1]):
-	        return False
+    for k, v in collideWalls.items():
+	act = tileSpaces[k]
+        for wall in v:
+      	    if wall[0]<plyPos[0]+cb-offsetX-act[0] and wall[0]>plyPos[0]-cb-offsetX-act[0] and wall[1]<plyPos[1]+cb-offsetY-act[1] and wall[1]>plyPos[1]-cb-offsetY-act[1]:
+	        if pygame.Rect(wall).collidepoint(plyPos[0]-offsetX-act[0],plyPos[1]-offsetY-act[1]):
+	            return False
     return True
 
 def plyUp():
