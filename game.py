@@ -14,6 +14,7 @@
 # fix the cellular automata map gen
 # continue USB controller support
 # finish start menu
+# optimize search algos
 
 import sys, pygame, random, struct
 from pygame.locals import *
@@ -52,8 +53,7 @@ def genHeatmap(seed):
     return heatmap
 
 def generateMap(tileId):
-    global tiles
-    
+    global tiles    
     
     hmSize = (64, 64) # size of 2d array
     
@@ -196,8 +196,6 @@ def generateTile():
 	generateMap(tileCount)
 	return tileCount
 
-    
-
 def randomSpawn():
     global spawned
     act = tileSpaces[activeTile]
@@ -288,9 +286,11 @@ def offset():
     cb = 100 # how many pixels away a wall should be to consider collision
     for k, v in collideWalls.items():
 	act = tileSpaces[k]
+	ppr0 = plyPos[0]-offsetX-act[0] # optimized math
+	ppr1 = plyPos[1]-offsetY-act[1] # optimized math
         for wall in v:
-      	    if wall[0]<plyPos[0]+cb-offsetX-act[0] and wall[0]>plyPos[0]-cb-offsetX-act[0] and wall[1]<plyPos[1]+cb-offsetY-act[1] and wall[1]>plyPos[1]-cb-offsetY-act[1]:
-	        if pygame.Rect(wall).collidepoint(plyPos[0]-offsetX-act[0],plyPos[1]-offsetY-act[1]):
+      	    if wall[0]<ppr0+cb and wall[0]>ppr0-cb and wall[1]<ppr1+cb and wall[1]>ppr1-cb:
+	        if pygame.Rect(wall).collidepoint(ppr0,ppr1):
 	            return False
     return True
 
@@ -427,12 +427,14 @@ def drawPly():
     if right: plyRight()
     pygame.draw.rect(hndl, blue, (plyPos[0], plyPos[1], 5, 5))
 
+lastUpdate = 0
 def tileTimer(): # checks every couple ms if the ply is close
 		 # to the end of any tile, and updates screen
 		 # with new tile. too wasteful doing this every 30 ticks
-    #print pygame.time.get_ticks()
-    if pygame.time.get_ticks()%7==0:
+    global lastUpdate
+    if pygame.time.get_ticks()-lastUpdate>100:
 	updateActiveTile()
+	lastUpdate = pygame.time.get_ticks()
     
     #DEBUGGING stuff below
     #print str(plyPos[0]) + "," + str(plyPos[1])
@@ -455,6 +457,7 @@ if pygame.joystick.get_count()>0:
 def joyControl():
     global up, down, left, right, kbOverride
     if kbOverride: return
+    if js==0: return
     #for i in range(pygame.joystick.get_count()):
 	#js = pygame.joystick.Joystick(i)
 	#js.init()
