@@ -244,11 +244,12 @@ hudHealthTxt = font1.render("Health: " + str(plyHp/10), 1, black)
 
 def updateActiveTile():
     global activeTile
-
+    pp0 = plyPos[0]-offsetX
+    pp1 = plyPos[1]-offsetY
     #tileSpaces is a dict matching tileId's to Rects
     for tileId, bounds in tileSpaces.items():
 	#lessBounds = (bounds[0]+50, bounds[1]-50, bounds[2]-100, bounds[3]-100)
-	if pygame.Rect(bounds).collidepoint(plyPos[0]-offsetX, plyPos[1]-offsetY):
+	if pygame.Rect(bounds).collidepoint(pp0, pp1):
 	    if activeTile==tileId: return
 	    activeTile = tileId
 	    print "Ply is in tile number " + str(tileId)
@@ -257,20 +258,22 @@ def updateActiveTile():
     activeTile = generateTile()
 	
 collideWalls = {}
+rightSide = W-scrollLimit
+bottomSide = H-scrollLimit
 
 def offset():
-    global plyPos, offsetX, offsetY, collideWalls
+    global plyPos, offsetX, offsetY, collideWalls, rightSide, bottomSide
     if plyPos[0]<scrollLimit:
 	plyPos=(scrollLimit,plyPos[1])
 	offsetX=offsetX+plySpeed
-    if plyPos[0]>W-scrollLimit:
-	plyPos=(W-scrollLimit,plyPos[1])
+    if plyPos[0]>rightSide:
+	plyPos=(rightSide,plyPos[1])
 	offsetX=offsetX-plySpeed
     if plyPos[1]<scrollLimit:
 	plyPos=(plyPos[0],scrollLimit)
 	offsetY=offsetY+plySpeed
-    if plyPos[1]>H-scrollLimit:
-	plyPos=(plyPos[0], H-scrollLimit)
+    if plyPos[1]>bottomSide:
+	plyPos=(plyPos[0], bottomSide)
 	offsetY=offsetY-plySpeed
 
     if not activeTile in tileSpaces: return    
@@ -288,8 +291,12 @@ def offset():
 	act = tileSpaces[k]
 	ppr0 = plyPos[0]-offsetX-act[0] # optimized math
 	ppr1 = plyPos[1]-offsetY-act[1] # optimized math
+	ppr2 = ppr0+cb
+	ppr3 = ppr0-cb
+	ppr4 = ppr1+cb
+	ppr5 = ppr1-cb
         for wall in v:
-      	    if wall[0]<ppr0+cb and wall[0]>ppr0-cb and wall[1]<ppr1+cb and wall[1]>ppr1-cb:
+      	    if wall[0]<ppr2 and wall[0]>ppr3 and wall[1]<ppr4 and wall[1]>ppr5:
 	        if pygame.Rect(wall).collidepoint(ppr0,ppr1):
 	            return False
     return True
