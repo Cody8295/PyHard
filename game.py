@@ -324,18 +324,29 @@ def plyAttackPrimary():
 def drawHUD():
     hndl.blit(hudHealthTxt, (5, 5))
 
+x,y = W-80, 5
+mm = pygame.Rect(x,y,75, 75)
 def drawMinimap():
-    x, y = W-80, 5
-    mm = pygame.Rect(x, y, 75, 75)
+    global x,y,mm
+    #x, y = W-80, 5
+    #mm = pygame.Rect(x, y, 75, 75)
     pygame.draw.rect(hndl, white, mm)
     pygame.draw.rect(hndl, black, mm, 1)
     if not activeTile in tiles: return
     for k, v in collideWalls.items():
+	act = tileSpaces[k]
+	b0=plyPos[0]+W*2-offsetX-act[0]
+	b1=plyPos[0]-W-offsetX-act[0]
+	b2=plyPos[1]+H*2-offsetY-act[1]
+	b3=plyPos[1]-H-offsetY-act[1]
+	#b4=plyPos[0]+offsetX+act[0] for some reason these 2
+	#b5=plyPos[1]+offsetY+act[1] optimizations dont work...
         for wall in v:
-            act = tileSpaces[k]
-            if wall[0]<plyPos[0]+W*2-offsetX-act[0] and wall[0]>plyPos[0]-W-offsetX-act[0] and wall[1]<plyPos[1]+H*2-offsetY-act[1] and wall[1]>plyPos[1]-H-offsetY-act[1]:
+            if wall[0]<b0 and wall[0]>b1 and wall[1]<b2 and wall[1]>b3:
+#                wallOffset = (wall[0]-b4, wall[1]-plyPos[1]+offsetY+act[1], wall[2], wall[3])
                 wallOffset = (wall[0]-plyPos[0]+offsetX+act[0], wall[1]-plyPos[1]+offsetY+act[1], wall[2], wall[3])
-	        wallOffset = (wallOffset[0]/10+x+37, wallOffset[1]/10+y+37, wallOffset[2]/10, wallOffset[3]/10)
+
+	        wallOffset = (wallOffset[0]/10+x+39, wallOffset[1]/10+y+39, wallOffset[2]/10, wallOffset[3]/10)
                 if mm.contains(wallOffset):
 		    pygame.draw.rect(hndl, green, wallOffset)
     pygame.draw.rect(hndl, red, (37+x, 37+y, 2, 2))
@@ -413,10 +424,16 @@ def drawWalls(): # only draws walls near player
 	visibleTiles.append(activeTile4)
 
     for tileId in visibleTiles:
+	act = tileSpaces[tileId]
+	b0=plyPos[0]+W-offsetX-act[0]
+	b1=plyPos[0]-W-offsetX-act[0]
+	b2=plyPos[1]+H-offsetY-act[1]
+	b3=plyPos[1]-H-offsetY-act[1]
+	b4=offsetX+act[0]
+	b5=offsetY+act[1]
         for wall in tiles[tileId]:
-            act = tileSpaces[tileId]
-	    if wall[0]<plyPos[0]+W-offsetX-act[0] and wall[0]>plyPos[0]-W-offsetX-act[0] and wall[1]<plyPos[1]+H-offsetY-act[1] and wall[1]>plyPos[1]-H-offsetY-act[1]:
-	        wallOffset = (wall[0]+offsetX+act[0], wall[1]+offsetY+act[1], wall[2], wall[3])
+	    if wall[0]<b0 and wall[0]>b1 and wall[1]<b2 and wall[1]>b3:
+	        wallOffset = (wall[0]+b4, wall[1]+b5, wall[2], wall[3])
 	        pygame.draw.rect(hndl, green, wallOffset)
     
   
