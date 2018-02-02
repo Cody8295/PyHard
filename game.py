@@ -167,28 +167,28 @@ def generateTile():
 
     act = tileSpaces[activeTile] if activeTile in tileSpaces else tileSpaces[tileCount-1]
     
-    if up or plyPos[1]-offsetY<act[1]:
+    if up or plyPos[1]-offsetY<act[1]+50:
         newTile = (act[0], act[1]-tileSize, newTile[2], newTile[3])
 	exists = getTileAtPos((newTile[0], newTile[1]))
 	if not exists==-1: return exists
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
-    if down or plyPos[1]-offsetY>act[1]+act[3]:
+    if down or plyPos[1]-offsetY>act[1]+act[3]-50:
 	newTile = (act[0], act[1]+tileSize, newTile[2], newTile[3])
 	exists = getTileAtPos((newTile[0], newTile[1]))
 	if not exists==-1: return exists
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
-    if left or plyPos[0]-offsetX<act[0]:
+    if left or plyPos[0]-offsetX<act[0]+50:
 	newTile = (act[0]-tileSize, act[1], newTile[2], newTile[3])
 	exists = getTileAtPos((newTile[0], newTile[1]))
 	if not exists==-1: return exists
 	tileSpaces[tileCount]=newTile
 	generateMap(tileCount)
 	return tileCount
-    if right or plyPos[0]-offsetX<act[0]+act[2]:
+    if right or plyPos[0]-offsetX<act[0]+act[2]-50:
 	newTile = (act[0]+tileSize, act[1], newTile[2], newTile[3])
 	exists = getTileAtPos((newTile[0], newTile[1]))
 	if not exists==-1: return exists
@@ -248,13 +248,16 @@ def updateActiveTile():
     pp1 = plyPos[1]-offsetY
     #tileSpaces is a dict matching tileId's to Rects
     for tileId, bounds in tileSpaces.items():
-	#lessBounds = (bounds[0]+50, bounds[1]-50, bounds[2]-100, bounds[3]-100)
+	lessBounds = (bounds[0]+50, bounds[1]+50, bounds[2]-100, bounds[3]-100)
 	if pygame.Rect(bounds).collidepoint(pp0, pp1):
+	    if not pygame.Rect(lessBounds).collidepoint(pp0,pp1):
+		print ("tile count",len(tileSpaces.items()))
+		generateTile()
 	    if activeTile==tileId: return
 	    activeTile = tileId
 	    print "Ply is in tile number " + str(tileId)
 	    return
-    
+    print "shouldnt happen anymore"
     activeTile = generateTile()
 	
 collideWalls = {}
@@ -326,6 +329,7 @@ def plyAttackPrimary():
     wepInfo = weapons[plyWepId]
     # Format: Name, dmg, self dmg, delay, default ammo
     if wepInfo[0]=="Fists":
+	
 	return
     
 def drawHUD():
